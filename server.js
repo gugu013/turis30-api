@@ -3,6 +3,8 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -35,7 +37,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const upload = multer({ dest: 'uploads/' });
+// Garante que a pasta uploads existe localmente no ambiente do Render
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const upload = multer({ dest: uploadDir });
 
 // Rota para TESTE
 app.get('/', (req, res) => {
@@ -194,10 +202,15 @@ app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
       return res.status(400).json({ erro: 'Nenhuma foto enviada' });
     }
 
-    // Envia o arquivo para o Cloudinary na pasta stories_turis30
+    // Envia o arquivo temporário para o Cloudinary na pasta stories_turis30
     const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path, {
       folder: 'stories_turis30'
     });
+
+    // Remove o arquivo temporário da pasta local do servidor após o upload
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
 
     const fotoUrlSegura = resultadoCloudinary.secure_url;
 
@@ -210,8 +223,8 @@ app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
 
     res.status(201).json(resultadoBanco.rows[0]);
   } catch (erro) {
-    console.error('Erro ao processar upload:', erro);
-    res.status(500).json({ erro: 'Erro ao processar upload da imagem' });
+    console.error('ERRO DETALHADO CLOUDINARY:', JSON.stringify(erro, null, 2));
+    res.status(500).json({ erro: erro.message || 'Erro ao processar upload da imagem' });
   }
 });
 
