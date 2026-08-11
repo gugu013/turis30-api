@@ -176,7 +176,7 @@ app.get('/locais/:id/historico', async (req, res) => {
   }
 });
 
-// Buscar instants ativos (últimas 24 horas) apontando para stories_local
+// Buscar instants ativos (últimas 24 horas)
 app.get('/locais/:id/stories', async (req, res) => {
   const { id } = req.params;
   try {
@@ -194,9 +194,10 @@ app.get('/locais/:id/stories', async (req, res) => {
   }
 });
 
-// POSTAR NOVO INSTANT: Upload real para o Cloudinary e salvamento em stories_local
+// POSTAR NOVO INSTANT: Upload real para o Cloudinary com foto e legenda opcional
 app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
   const { id } = req.params;
+  const { legenda } = req.body;
   try {
     if (!req.file) {
       return res.status(400).json({ erro: 'Nenhuma foto enviada' });
@@ -214,12 +215,12 @@ app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
 
     const fotoUrlSegura = resultadoCloudinary.secure_url;
 
-    // Salva o link oficial do Cloudinary no banco PostgreSQL na tabela correta
+    // Salva a foto e a legenda no banco PostgreSQL
     const query = `
-      INSERT INTO stories_local (ponto_id, foto_url)
-      VALUES ($1, $2) RETURNING *;
+      INSERT INTO stories_local (ponto_id, foto_url, legenda)
+      VALUES ($1, $2, $3) RETURNING *;
     `;
-    const resultadoBanco = await pool.query(query, [id, fotoUrlSegura]);
+    const resultadoBanco = await pool.query(query, [id, fotoUrlSegura, legenda || '']);
 
     res.status(201).json(resultadoBanco.rows[0]);
   } catch (erro) {
