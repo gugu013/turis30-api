@@ -176,12 +176,12 @@ app.get('/locais/:id/historico', async (req, res) => {
   }
 });
 
-// Buscar instants ativos (últimas 24 horas)
+// Buscar instants ativos (últimas 24 horas) apontando para stories_local
 app.get('/locais/:id/stories', async (req, res) => {
   const { id } = req.params;
   try {
     const resultado = await pool.query(
-      `SELECT * FROM historias_locais 
+      `SELECT * FROM stories_local 
        WHERE ponto_id = $1 
        AND criado_em >= NOW() - INTERVAL '24 hours'
        ORDER BY criado_em DESC`,
@@ -194,7 +194,7 @@ app.get('/locais/:id/stories', async (req, res) => {
   }
 });
 
-// POSTAR NOVO INSTANT: Upload real para o Cloudinary e salvamento no Neon
+// POSTAR NOVO INSTANT: Upload real para o Cloudinary e salvamento em stories_local
 app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
   const { id } = req.params;
   try {
@@ -214,9 +214,9 @@ app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
 
     const fotoUrlSegura = resultadoCloudinary.secure_url;
 
-    // Salva o link oficial do Cloudinary no banco PostgreSQL
+    // Salva o link oficial do Cloudinary no banco PostgreSQL na tabela correta
     const query = `
-      INSERT INTO historias_locais (ponto_id, foto_url)
+      INSERT INTO stories_local (ponto_id, foto_url)
       VALUES ($1, $2) RETURNING *;
     `;
     const resultadoBanco = await pool.query(query, [id, fotoUrlSegura]);
