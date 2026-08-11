@@ -18,6 +18,11 @@ const pool = new Pool({
   }
 });
 
+// Listener para evitar que o servidor caia se a conexão ociosa com o Neon cair
+pool.on('error', (err, client) => {
+  console.error('Erro inesperado no cliente do banco ocioso:', err);
+});
+
 // Testando a conexão com o banco logo ao ligar o servidor
 pool.connect()
   .then(() => console.log('✅ Conectado ao banco de dados Turis30 com sucesso!'))
@@ -163,7 +168,7 @@ app.get('/locais/:id/historico', async (req, res) => {
   }
 });
 
-// Buscar stories/instants ativos (últimas 24 horas)
+// Buscar instants ativos (últimas 24 horas)
 app.get('/locais/:id/stories', async (req, res) => {
   const { id } = req.params;
   try {
@@ -181,7 +186,7 @@ app.get('/locais/:id/stories', async (req, res) => {
   }
 });
 
-// POSTAR NOVO INSTANT: Faz upload real para o Cloudinary e salva o link seguro no banco
+// POSTAR NOVO INSTANT: Upload real para o Cloudinary e salvamento no Neon
 app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
   const { id } = req.params;
   try {
