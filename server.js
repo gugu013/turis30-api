@@ -163,12 +163,12 @@ app.get('/locais/:id/historico', async (req, res) => {
   }
 });
 
-// Buscar stories ativos (últimas 24 horas)
+// Buscar stories/instants ativos (últimas 24 horas)
 app.get('/locais/:id/stories', async (req, res) => {
   const { id } = req.params;
   try {
     const resultado = await pool.query(
-      `SELECT * FROM stories_local 
+      `SELECT * FROM historias_locais 
        WHERE ponto_id = $1 
        AND criado_em >= NOW() - INTERVAL '24 hours'
        ORDER BY criado_em DESC`,
@@ -177,24 +177,36 @@ app.get('/locais/:id/stories', async (req, res) => {
     res.json(resultado.rows);
   } catch (erro) {
     console.error(erro);
-    res.status(500).json({ erro: 'Erro ao buscar stories' });
+    res.status(500).json({ erro: 'Erro ao buscar instants' });
   }
 });
 
-// Postar um novo story (compatível com JSON ou texto simples de URL)
-app.post('/locais/:id/stories', async (req, res) => {
+// POSTAR NOVO INSTANT: Faz upload real para o Cloudinary e salva o link seguro no banco
+app.post('/locais/:id/stories', upload.single('foto'), async (req, res) => {
   const { id } = req.params;
-  const { fotoUrl } = req.body;
   try {
+    if (!req.file) {
+      return res.status(400).json({ erro: 'Nenhuma foto enviada' });
+    }
+
+    // Envia o arquivo para o Cloudinary na pasta stories_turis30
+    const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'stories_turis30'
+    });
+
+    const fotoUrlSegura = resultadoCloudinary.secure_url;
+
+    // Salva o link oficial do Cloudinary no banco PostgreSQL
     const query = `
-      INSERT INTO stories_local (ponto_id, foto_url)
+      INSERT INTO historias_locais (ponto_id, foto_url)
       VALUES ($1, $2) RETURNING *;
     `;
-    const resultado = await pool.query(query, [id, fotoUrl]);
-    res.status(201).json(resultado.rows[0]);
+    const resultadoBanco = await pool.query(query, [id, fotoUrlSegura]);
+
+    res.status(201).json(resultadoBanco.rows[0]);
   } catch (erro) {
-    console.error(erro);
-    res.status(500).json({ erro: 'Erro ao salvar story' });
+    console.error('Erro ao processar upload:', erro);
+    res.status(500).json({ erro: 'Erro ao processar upload da imagem' });
   }
 });
 
